@@ -162,5 +162,11 @@ defmodule RedixCluster.Monitor do
       pool: nil
      }
   end
+  defp parse_master_node([[master_host, master_port|_]]) do
+    %{host: to_char_list(master_host),
+      port: master_port,
+      pool: nil
+     }
+  end
 
 end

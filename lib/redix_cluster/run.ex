@@ -103,7 +103,7 @@ defmodule RedixCluster.Run do
     try do
       pool_name
         |> :poolboy.transaction(fn(worker) -> GenServer.call(worker, {type, command, opts}) end)
-        |> parse_trans_result(version)
+        |> parse_trans_result({version, pool_name}, command, type, opts)
     catch
        :exit, _ ->
          RedixCluster.Monitor.refresh_mapping(version)
@@ -111,15 +111,22 @@ defmodule RedixCluster.Run do
     end
   end
 
-  defp parse_trans_result({:error, %Redix.Error{message: <<"MOVED", _redirectioninfo::binary>>}}, version) do
+  defp parse_trans_result({:error, %Redix.Error{message: <<"ASK", redirectioninfo::binary>>}}, {version, _pool_name}, command, type, opts) do
+    [_, _slot, host_info] = Regex.split(~r/\s+/, redirectioninfo)
+    [host, port] = Regex.split(~r/:/, host_info)
+    pool = RedixCluster.Pools.Supervisor.new_pool(host, port)
+    pool_name = ["Pool", host, ":", port] |> Enum.join |> String.to_atom
+    query_redis_pool({version, pool_name}, command, type, opts)
+  end
+  defp parse_trans_result({:error, %Redix.Error{message: <<"MOVED", _redirectioninfo::binary>>}}, {version, _pool_name}, _command, _type, _opts) do
     RedixCluster.Monitor.refresh_mapping(version)
     {:error, :retry}
   end
-  defp parse_trans_result({:error, :no_connection}, version) do
+  defp parse_trans_result({:error, :no_connection}, {version, _pool_name}, _command, _type, _opts) do
     RedixCluster.Monitor.refresh_mapping(version)
     {:error, :retry}
   end
-  defp parse_trans_result(payload, _), do: payload
+  defp parse_trans_result(payload, _, _, _, _), do: payload
 
   defp verify_command_key(term1, term2) do
     term1
