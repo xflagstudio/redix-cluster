@@ -77,13 +77,14 @@ defmodule RedixCluster.Monitor do
   defp get_cluster_info([node|restnodes]) do
     case start_link_redix(node.host, node.port) do
       {:ok, conn} ->
-        case Redix.command(conn, ~w(CLUSTER SLOTS), []) do
-          {:ok, cluster_info} ->
-            Redix.stop(conn)
-            {true, cluster_info}
-          {:error, %Redix.Error{message: "ERR unknown command 'CLUSTER'"}} ->
-            cluster_info_from_single_node(node)
-          {:error, %Redix.Error{message: "ERR This instance has cluster support disabled"}} ->
+        try do
+          case Redix.command(conn, ~w(CLUSTER SLOTS), []) do
+            {:ok, cluster_info} ->
+              Redix.stop(conn)
+              {true, cluster_info}
+          end
+        rescue
+          Redix.Error ->
             cluster_info_from_single_node(node)
         end
       _ -> get_cluster_info(restnodes)
