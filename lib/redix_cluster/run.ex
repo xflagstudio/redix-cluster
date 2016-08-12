@@ -48,6 +48,21 @@ defmodule RedixCluster.Run do
     end
   end
 
+  def flushdb() do
+    case RedixCluster.Monitor.get_slot_cache do
+      {:cluster, slots_maps, slots, version} ->
+        Enum.each(slots_maps, fn(cluster) ->
+          case cluster == nil or cluster.node == nil do
+            true -> nil
+            false -> query_redis_pool({version, cluster.node.pool}, ~w(flushdb), :command, [])
+          end
+        end)
+        {:ok, "OK"}
+      {:not_cluster, version, pool_name} ->
+        query_redis_pool({version, pool_name}, ~w(flushdb), :command, [])
+    end
+  end
+
   defp parse_key_from_command([term1, term2|_]), do: verify_command_key(term1, term2)
   defp parse_key_from_command([term]), do: verify_command_key(term, "")
   defp parse_key_from_command(_), do: {:error, :invalid_cluster_command}

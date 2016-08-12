@@ -10,6 +10,7 @@ defmodule RedixCluster.Command.Spec do
                                   [5461, 10922, ["10.1.2.6", 7000], ["10.1.2.7", 7001]],
                                   [0, 5460, ["10.1.2.7", 7000], ["10.1.2.6", 7001]]]}
       (_, ~w(set a test), _) -> {:ok, "OK"}
+      (_, ~w(flushdb), _) -> {:ok, "OK"}
       (_, ~w(get a), _) -> {:ok, "test"}
       (_, ~w(incr a), _) -> {:error, %Redix.Error{message: "ERR value is not an integer or out of range"}}
     end, [:non_strict, :unstick]
@@ -35,4 +36,7 @@ defmodule RedixCluster.Command.Spec do
     end
   end
 
+  context "flushdb test" do
+    it do: expect RedixCluster.flushdb() |> to eq {:ok, "OK"}
+  end
 end
