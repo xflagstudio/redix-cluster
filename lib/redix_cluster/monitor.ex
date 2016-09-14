@@ -82,6 +82,7 @@ defmodule RedixCluster.Monitor do
             {:ok, cluster_info} ->
               Redix.stop(conn)
               {true, cluster_info}
+            {:error, _} -> get_cluster_info(restnodes)
           end
         rescue
           Redix.Error ->
