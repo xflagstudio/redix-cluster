@@ -158,7 +158,7 @@ defmodule RedixCluster.Monitor do
       |> String.to_atom
   end
 
-  defp parse_master_node([[master_host, master_port]|_]) do
+  defp parse_master_node([[master_host, master_port|_]|_]) do
     %{host: to_char_list(master_host),
       port: master_port,
       pool: nil
