@@ -8,7 +8,7 @@ defmodule RedixCluster.Mixfile do
      build_embedded: Mix.env in [:prod],
      start_permanent: Mix.env == :prod,
      preferred_cli_env: [espec: :test],
-     deps: deps]
+     deps: deps()]
   end
 
   # Configuration for the OTP application
@@ -29,7 +29,7 @@ defmodule RedixCluster.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    [ {:redix, "~> 0.4.0"},
+    [ {:redix, "~> 0.5.0"},
       {:poolboy, "~> 1.5", override: true},
       {:dialyze, "~> 0.2", only: :dev},
       {:dogma, "~> 0.0", only: :dev},
