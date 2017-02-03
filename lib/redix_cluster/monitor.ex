@@ -17,7 +17,7 @@ defmodule RedixCluster.Monitor do
 
   @spec get_slot_cache() :: {:cluster, [binary], [integer], integer} | {:not_cluster, integer, atom}
   def get_slot_cache() do
-    [{:cluster_state, state}] = :ets.lookup(__MODULE__, :cluster_state)
+    state = GenServer.call(__MODULE__, {:get_slot})
     case state.is_cluster do
       true -> {:cluster, state.slots_maps, state.slots, state.version}
       false ->
@@ -30,11 +30,14 @@ defmodule RedixCluster.Monitor do
   def start_link(options), do: GenServer.start_link(__MODULE__, nil, options)
 
   def init(nil) do
-    :ets.new(__MODULE__, [:protected, :set, :named_table, {:read_concurrency, true}])
     case get_env(:cluster_nodes, []) do
       [] -> {:ok, %State{}}
       cluster_nodes -> {:ok, do_connect(cluster_nodes)}
     end
+  end
+
+  def handle_call({:get_slot}, _from, state) do
+    {:reply, state, state}
   end
 
   def handle_call({:reload_slots_map, version}, _from, state = %State{version: version}) do
@@ -60,9 +63,7 @@ defmodule RedixCluster.Monitor do
     {is_cluster, cluster_info} = get_cluster_info(state.cluster_nodes)
     slots_maps = cluster_info |> parse_slots_maps |> connect_all_slots
     slots = create_slots_cache(slots_maps)
-    new_state = %State{state | slots: slots, slots_maps: slots_maps, version: state.version + 1, is_cluster: is_cluster}
-    true = :ets.insert(__MODULE__, [{:cluster_state, new_state}])
-    new_state
+    %State{state | slots: slots, slots_maps: slots_maps, version: state.version + 1, is_cluster: is_cluster}
   end
 
   defp close_connection(slots_map) do
