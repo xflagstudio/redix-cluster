@@ -56,10 +56,7 @@ defmodule RedixCluster.Run do
     end
   end
 
-  #def key_to_slot_hash({:error, _} = error), do: error
-  def key_to_slot_hash({:error, _} = error) do
-    error
-  end
+  def key_to_slot_hash({:error, _} = error), do: error
   def key_to_slot_hash(key) do
     case Regex.run(~r/{\S+}/, key) do
       nil -> RedixCluster.Hash.hash(key)
@@ -105,7 +102,7 @@ defmodule RedixCluster.Run do
         |> :poolboy.transaction(fn(worker) -> GenServer.call(worker, {type, command, opts}) end)
         |> parse_trans_result({version, pool_name}, command, type, opts)
     catch
-       :exit, a ->
+       :exit, _ ->
          RedixCluster.Monitor.refresh_mapping(version)
          {:error, :retry}
     end
