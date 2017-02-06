@@ -13,17 +13,15 @@ defmodule RedixCluster.Monitor do
   def connect(cluster_nodes), do: GenServer.call(__MODULE__, {:connect, cluster_nodes})
 
   @spec refresh_mapping(integer) :: :ok | {:ignore, String.t}
-  def refresh_mapping(version), do: GenServer.call(__MODULE__, {:reload_slots_map, version})
+  def refresh_mapping(version) do
+    result = GenServer.call(__MODULE__, {:reload_slots_map, version})
+    RedixCluster.SlotCache.refresh_mapping(version)
+    result
+  end
 
   @spec get_slot_cache() :: {:cluster, [binary], [integer], integer} | {:not_cluster, integer, atom}
   def get_slot_cache() do
-    state = GenServer.call(__MODULE__, {:get_slot})
-    case state.is_cluster do
-      true -> {:cluster, state.slots_maps, state.slots, state.version}
-      false ->
-        [slots_map] = state.slots_maps
-        {:not_cluster, state.version, slots_map.node.pool}
-    end
+    GenServer.call(__MODULE__, {:get_slot})
   end
 
   @spec start_link(Keyword.t) :: GenServer.on_start
