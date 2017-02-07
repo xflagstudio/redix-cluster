@@ -37,9 +37,16 @@ defmodule RedixCluster.Hash do
             0xef,0x1f,0xff,0x3e,0xcf,0x5d,0xdf,0x7c,0xaf,0x9b,0xbf,0xba,0x8f,0xd9,0x9f,0xf8,
             0x6e,0x17,0x7e,0x36,0x4e,0x55,0x5e,0x74,0x2e,0x93,0x3e,0xb2,0x0e,0xd1,0x1e,0xf0>>
 
+  ## CRCBench
+  # benchmark name   iterations   average time 
+  # CRC                     100   20819.58 µs/op
+  # RedixClusterCRC          10   126367.30 µs/op
+
   @spec hash(binary) :: integer
-  def hash(key) when is_binary(key), do: key |> to_char_list |> hash
-  def hash(key), do: crc16(0, key) |>rem @redis_cluster_hash_slots
+  #def hash(key) when is_binary(key), do: key |> to_char_list |> hash
+  #def hash(key), do: crc16(0, key) |>rem @redis_cluster_hash_slots
+  def hash(key) when is_list(key), do: key |> to_string |> hash
+  def hash(key), do: CRC.ccitt_16_xmodem(key) |>rem @redis_cluster_hash_slots
 
   defp crc16(crc, []), do: crc
   defp crc16(crc, [b | rest]) do
