@@ -57,11 +57,21 @@ defmodule RedixCluster.Monitor do
   end
 
   defp reload_slots_map(state) do
-    for slots_map <- state.slots_maps, do: close_connection(slots_map)
+    old_slots_maps = state.slots_maps
     {is_cluster, cluster_info} = get_cluster_info(state.cluster_nodes)
     slots_maps = cluster_info |> parse_slots_maps |> connect_all_slots
     slots = create_slots_cache(slots_maps)
+
+    # close only removed pool
+    removed = removed_nodes(old_slots_maps, slots_maps)
+    for slots_map <- removed, do: close_connection(slots_map)
+
     %State{state | slots: slots, slots_maps: slots_maps, version: state.version + 1, is_cluster: is_cluster}
+  end
+
+  defp removed_nodes(old_slots_maps, slots_maps) do
+    new_pools = slots_maps |> Enum.map(fn(slot) -> slot.node.pool end)
+    old_slots_maps |> Enum.reject(fn(slot) -> slot.node.pool in new_pools end)
   end
 
   defp close_connection(slots_map) do
