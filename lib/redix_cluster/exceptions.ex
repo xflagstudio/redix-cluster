@@ -14,8 +14,8 @@ defmodule RedixCluster.Error do
 
   def exception(:no_support_transaction), do: %__MODULE__{message: "cluster pipeline don't support MULTI, using transation"}
 
-  def exception(other)when is_atom(other), do: %Redix.ConnectionError{message: :inet.format_error(other)}
+  def exception(other)when is_atom(other), do: %Redix.ConnectionError{reason: :inet.format_error(other)}
 
-  @type t :: %__MODULE__{message: binary} | %Redix.ConnectionError{message: binary}
+  @type t :: %__MODULE__{message: binary} | %Redix.ConnectionError{reason: binary}
 
 end

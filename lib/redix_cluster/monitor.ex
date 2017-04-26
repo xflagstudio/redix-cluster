@@ -19,7 +19,6 @@ defmodule RedixCluster.Monitor do
     result
   end
 
-  @spec get_slot_cache() :: {:cluster, [binary], [integer], integer} | {:not_cluster, integer, atom}
   def get_slot_cache() do
     GenServer.call(__MODULE__, {:get_slot})
   end
@@ -139,7 +138,7 @@ defmodule RedixCluster.Monitor do
     {false,
       [[0,
         @redis_cluster_hash_slots - 1,
-        [List.to_string(node.host), node.port]
+        [node.host, node.port]
       ]]
     }
   end
@@ -168,13 +167,13 @@ defmodule RedixCluster.Monitor do
   end
 
   defp parse_master_node([[master_host, master_port|_]|_]) do
-    %{host: to_char_list(master_host),
+    %{host: master_host,
       port: master_port,
       pool: nil
      }
   end
   defp parse_master_node([[master_host, master_port|_]]) do
-    %{host: to_char_list(master_host),
+    %{host: master_host,
       port: master_port,
       pool: nil
      }
