@@ -111,7 +111,7 @@ defmodule RedixCluster.Run do
   defp parse_trans_result({:error, %Redix.Error{message: <<"ASK", redirectioninfo::binary>>}}, {version, _pool_name}, command, type, opts) do
     [_, _slot, host_info] = Regex.split(~r/\s+/, redirectioninfo)
     [host, port] = Regex.split(~r/:/, host_info)
-    pool = RedixCluster.Pools.Supervisor.new_pool(host, port)
+    RedixCluster.Pools.Supervisor.new_pool(host, port)
     pool_name = ["Pool", host, ":", port] |> Enum.join |> String.to_atom
     query_redis_pool({version, pool_name}, command, type, opts)
   end

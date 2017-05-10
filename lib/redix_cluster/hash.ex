@@ -10,6 +10,6 @@ defmodule RedixCluster.Hash do
 
   @spec hash(binary) :: integer
   def hash(key) when is_list(key), do: key |> to_string |> hash
-  def hash(key), do: CRC.ccitt_16_xmodem(key) |>rem @redis_cluster_hash_slots
+  def hash(key), do: CRC.ccitt_16_xmodem(key) |>rem(@redis_cluster_hash_slots)
 
 end

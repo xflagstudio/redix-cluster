@@ -103,7 +103,7 @@ defmodule RedixCluster.Monitor do
   #[[10923, 16383, ["Host1", 7000], ["SlaveHost1", 7001]],
   #[5461, 10922, ["Host2", 7000], ["SlaveHost2", 7001]],
   #[0, 5460, ["Host3", 7000], ["SlaveHost3", 7001]]]
-  defp parse_slots_maps(cluster_info) do
+  def parse_slots_maps(cluster_info) do
     cluster_info
       |> Stream.with_index
       |> Stream.map(&parse_cluster_slot/1)
@@ -172,11 +172,4 @@ defmodule RedixCluster.Monitor do
       pool: nil
      }
   end
-  defp parse_master_node([[master_host, master_port|_]]) do
-    %{host: master_host,
-      port: master_port,
-      pool: nil
-     }
-  end
-
 end
