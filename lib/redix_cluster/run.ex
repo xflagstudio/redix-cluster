@@ -131,6 +131,10 @@ defmodule RedixCluster.Run do
     RedixCluster.Monitor.refresh_mapping(version)
     {:error, :retry}
   end
+  defp parse_trans_result({:error, %Redix.Error{message: <<"CLUSTERDOWN", _::binary>>}}, {version, _pool_name}, _command, _type, _opts) do
+    RedixCluster.Monitor.refresh_mapping(version)
+    {:error, :retry}
+  end
   defp parse_trans_result(payload, _, _, _, _), do: payload
 
   defp verify_command_key(term1, term2) do
