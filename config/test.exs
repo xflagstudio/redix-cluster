@@ -1,9 +1,9 @@
 use Mix.Config
 
 config :redix_cluster,
-  cluster_nodes: [%{host: '10.1.2.7', port: 7000},
-                  %{host: '10.1.2.6', port: 7000},
-                  %{host: '10.1.2.5', port: 7000}
+  cluster_nodes: [%{host: "127.0.0.1", port: 7000},
+                  %{host: "127.0.0.1", port: 7001},
+                  %{host: "127.0.0.1", port: 7002}
                  ],
   pool_size: 5,
   pool_max_overflow: 0,

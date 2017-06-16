@@ -26,10 +26,20 @@ defmodule RedixCluster.Worker do
     {:reply, {:error, :no_connection}, state}
   end
   def handle_call({:command, params, opts}, _From, %{conn: conn} = state) do
-    {:reply, Redix.command(conn, params, opts), state}
+    try do
+      {:reply, Redix.command(conn, params, opts), state}
+    rescue
+      e in Redix.Error ->
+        {:reply, {:error, e}, state}
+    end
   end
   def handle_call({:pipeline, params, opts}, _from, %{conn: conn} = state) do
-    {:reply, Redix.pipeline(conn, params, opts), state}
+    try do
+      {:reply, Redix.pipeline(conn, params, opts), state}
+    rescue
+      e in Redix.Error ->
+        {:reply, {:error, e}, state}
+    end
   end
   def handle_call(_request, _from, state), do: {:reply, :ok, state}
 

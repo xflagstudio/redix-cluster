@@ -13,28 +13,28 @@ defmodule RedixCluster.Monitor do
   def connect(cluster_nodes), do: GenServer.call(__MODULE__, {:connect, cluster_nodes})
 
   @spec refresh_mapping(integer) :: :ok | {:ignore, String.t}
-  def refresh_mapping(version), do: GenServer.call(__MODULE__, {:reload_slots_map, version})
+  def refresh_mapping(version) do
+    result = GenServer.call(__MODULE__, {:reload_slots_map, version})
+    RedixCluster.SlotCache.refresh_mapping(version)
+    result
+  end
 
-  @spec get_slot_cache() :: {:cluster, [binary], [integer], integer} | {:not_cluster, integer, atom}
   def get_slot_cache() do
-    [{:cluster_state, state}] = :ets.lookup(__MODULE__, :cluster_state)
-    case state.is_cluster do
-      true -> {:cluster, state.slots_maps, state.slots, state.version}
-      false ->
-        [slots_map] = state.slots_maps
-        {:not_cluster, state.version, slots_map.node.pool}
-    end
+    GenServer.call(__MODULE__, {:get_slot})
   end
 
   @spec start_link(Keyword.t) :: GenServer.on_start
   def start_link(options), do: GenServer.start_link(__MODULE__, nil, options)
 
   def init(nil) do
-    :ets.new(__MODULE__, [:protected, :set, :named_table, {:read_concurrency, true}])
     case get_env(:cluster_nodes, []) do
       [] -> {:ok, %State{}}
       cluster_nodes -> {:ok, do_connect(cluster_nodes)}
     end
+  end
+
+  def handle_call({:get_slot}, _from, state) do
+    {:reply, state, state}
   end
 
   def handle_call({:reload_slots_map, version}, _from, state = %State{version: version}) do
@@ -56,13 +56,21 @@ defmodule RedixCluster.Monitor do
   end
 
   defp reload_slots_map(state) do
-    for slots_map <- state.slots_maps, do: close_connection(slots_map)
+    old_slots_maps = state.slots_maps
     {is_cluster, cluster_info} = get_cluster_info(state.cluster_nodes)
     slots_maps = cluster_info |> parse_slots_maps |> connect_all_slots
     slots = create_slots_cache(slots_maps)
-    new_state = %State{state | slots: slots, slots_maps: slots_maps, version: state.version + 1, is_cluster: is_cluster}
-    true = :ets.insert(__MODULE__, [{:cluster_state, new_state}])
-    new_state
+
+    # close only removed pool
+    removed = removed_nodes(old_slots_maps, slots_maps)
+    for slots_map <- removed, do: close_connection(slots_map)
+
+    %State{state | slots: slots, slots_maps: slots_maps, version: state.version + 1, is_cluster: is_cluster}
+  end
+
+  defp removed_nodes(old_slots_maps, slots_maps) do
+    new_pools = slots_maps |> Enum.map(fn(slot) -> slot.node.pool end)
+    old_slots_maps |> Enum.reject(fn(slot) -> slot.node.pool in new_pools end)
   end
 
   defp close_connection(slots_map) do
@@ -77,13 +85,15 @@ defmodule RedixCluster.Monitor do
   defp get_cluster_info([node|restnodes]) do
     case start_link_redix(node.host, node.port) do
       {:ok, conn} ->
-        case Redix.command(conn, ~w(CLUSTER SLOTS), []) do
-          {:ok, cluster_info} ->
-            Redix.stop(conn)
-            {true, cluster_info}
-          {:error, %Redix.Error{message: "ERR unknown command 'CLUSTER'"}} ->
-            cluster_info_from_single_node(node)
-          {:error, %Redix.Error{message: "ERR This instance has cluster support disabled"}} ->
+        try do
+          case Redix.command(conn, ~w(CLUSTER SLOTS), []) do
+            {:ok, cluster_info} ->
+              Redix.stop(conn)
+              {true, cluster_info}
+            {:error, _} -> get_cluster_info(restnodes)
+          end
+        rescue
+          Redix.Error ->
             cluster_info_from_single_node(node)
         end
       _ -> get_cluster_info(restnodes)
@@ -93,7 +103,7 @@ defmodule RedixCluster.Monitor do
   #[[10923, 16383, ["Host1", 7000], ["SlaveHost1", 7001]],
   #[5461, 10922, ["Host2", 7000], ["SlaveHost2", 7001]],
   #[0, 5460, ["Host3", 7000], ["SlaveHost3", 7001]]]
-  defp parse_slots_maps(cluster_info) do
+  def parse_slots_maps(cluster_info) do
     cluster_info
       |> Stream.with_index
       |> Stream.map(&parse_cluster_slot/1)
@@ -128,7 +138,7 @@ defmodule RedixCluster.Monitor do
     {false,
       [[0,
         @redis_cluster_hash_slots - 1,
-        [List.to_string(node.host), node.port]
+        [node.host, node.port]
       ]]
     }
   end
@@ -156,11 +166,10 @@ defmodule RedixCluster.Monitor do
       |> String.to_atom
   end
 
-  defp parse_master_node([[master_host, master_port]|_]) do
-    %{host: to_char_list(master_host),
+  defp parse_master_node([[master_host, master_port|_]|_]) do
+    %{host: master_host,
       port: master_port,
       pool: nil
      }
   end
-
 end
