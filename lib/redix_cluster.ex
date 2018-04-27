@@ -154,6 +154,8 @@ defmodule RedixCluster do
     {:ok, [Redix.Protocol.redis_value]} | {:error, term}
   def transaction(commands, opts\\ []), do: transaction(commands, opts, 0)
 
+  def flushdb(), do: RedixCluster.Run.flushdb()
+
   @doc """
   `Make sure` CROSSSLOT Keys in request hash to the same slot
 

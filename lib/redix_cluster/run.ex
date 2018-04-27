@@ -5,47 +5,44 @@ defmodule RedixCluster.Run do
 
   @spec command(command, Keyword.t) :: {:ok, term} |{:error, term}
   def command(command, opts) do
-    case RedixCluster.Monitor.get_slot_cache do
-     {:cluster, slots_maps, slots, version} ->
-        command
-          |> parse_key_from_command
-          |> key_to_slot_hash
-          |> get_pool_by_slot(slots_maps, slots, version)
-          |> query_redis_pool(command, :command, opts)
-     {:not_cluster, version, pool_name} ->
-       query_redis_pool({version, pool_name}, command, :command, opts)
-    end
+    command
+      |> parse_key_from_command()
+      |> key_to_slot_hash()
+      |> RedixCluster.SlotCache.get_pool()
+      |> query_redis_pool(command, :command, opts)
   end
 
   @spec pipeline([command], Keyword.t) :: {:ok, term} |{:error, term}
   def pipeline(pipeline, opts) do
-    case RedixCluster.Monitor.get_slot_cache do
-      {:cluster, slots_maps, slots, version} ->
-         pipeline
-           |> parse_keys_from_pipeline
-           |> keys_to_slot_hashs
-           |> is_same_slot_hashs
-           |> get_pool_by_slot(slots_maps, slots, version)
-           |> query_redis_pool(pipeline, :pipeline, opts)
-      {:not_cluster, version, pool_name} ->
-         query_redis_pool({version, pool_name}, pipeline, :pipeline, opts)
-    end
+    pipeline
+      |> parse_keys_from_pipeline()
+      |> keys_to_slot_hashs()
+      |> is_same_slot_hashs()
+      |> RedixCluster.SlotCache.get_pool()
+      |> query_redis_pool(pipeline, :pipeline, opts)
   end
 
   @spec transaction([command], Keyword.t) :: {:ok, term} |{:error, term}
   def transaction(pipeline, opts) do
     transaction = [["MULTI"]] ++ pipeline ++ [["EXEC"]]
-    case RedixCluster.Monitor.get_slot_cache do
-      {:cluster, slots_maps, slots, version} ->
-         pipeline
-           |> parse_keys_from_pipeline
-           |> keys_to_slot_hashs
-           |> is_same_slot_hashs
-           |> get_pool_by_slot(slots_maps, slots, version)
-           |> query_redis_pool(transaction, :pipeline, opts)
-      {:not_cluster, version, pool_name} ->
-         query_redis_pool({version, pool_name}, transaction, :pipeline, opts)
-    end
+
+    pipeline
+      |> parse_keys_from_pipeline()
+      |> keys_to_slot_hashs()
+      |> is_same_slot_hashs()
+      |> RedixCluster.SlotCache.get_pool()
+      |> query_redis_pool(transaction, :pipeline, opts)
+  end
+
+  def flushdb() do
+    {version, slots_maps} =  RedixCluster.SlotCache.get_slot_maps
+    Enum.each(slots_maps, fn(cluster) ->
+      case cluster == nil or cluster.node == nil do
+        true -> nil
+        false -> query_redis_pool({version, cluster.node.pool}, ~w(flushdb), :command, [])
+      end
+    end)
+    {:ok, "OK"}
   end
 
   defp parse_key_from_command([term1, term2|_]), do: verify_command_key(term1, term2)
@@ -103,7 +100,7 @@ defmodule RedixCluster.Run do
     try do
       pool_name
         |> :poolboy.transaction(fn(worker) -> GenServer.call(worker, {type, command, opts}) end)
-        |> parse_trans_result(version)
+        |> parse_trans_result({version, pool_name}, command, type, opts)
     catch
        :exit, _ ->
          RedixCluster.Monitor.refresh_mapping(version)
@@ -111,15 +108,34 @@ defmodule RedixCluster.Run do
     end
   end
 
-  defp parse_trans_result({:error, %Redix.Error{message: <<"MOVED", _redirectioninfo::binary>>}}, version) do
+  defp parse_trans_result({:error, %Redix.Error{message: <<"ASK", redirectioninfo::binary>>}}, {version, _pool_name}, command, type, opts) do
+    [_, _slot, host_info] = Regex.split(~r/\s+/, redirectioninfo)
+    [host, port] = Regex.split(~r/:/, host_info)
+    RedixCluster.Pools.Supervisor.new_pool(host, port)
+    pool_name = ["Pool", host, ":", port] |> Enum.join |> String.to_atom
+    query_redis_pool({version, pool_name}, command, type, opts)
+  end
+  defp parse_trans_result({:error, %Redix.Error{message: <<"MOVED", _redirectioninfo::binary>>}}, {version, _pool_name}, _command, _type, _opts) do
     RedixCluster.Monitor.refresh_mapping(version)
     {:error, :retry}
   end
-  defp parse_trans_result({:error, :no_connection}, version) do
+  defp parse_trans_result({:error, :no_connection}, {version, _pool_name}, _command, _type, _opts) do
     RedixCluster.Monitor.refresh_mapping(version)
     {:error, :retry}
   end
-  defp parse_trans_result(payload, _), do: payload
+  defp parse_trans_result({:error, :closed}, {version, _pool_name}, _command, _type, _opts) do
+    RedixCluster.Monitor.refresh_mapping(version)
+    {:error, :retry}
+  end
+  defp parse_trans_result({:error, %Redix.ConnectionError{}}, {version, _pool_name}, _command, _type, _opts) do
+    RedixCluster.Monitor.refresh_mapping(version)
+    {:error, :retry}
+  end
+  defp parse_trans_result({:error, %Redix.Error{message: <<"CLUSTERDOWN", _::binary>>}}, {version, _pool_name}, _command, _type, _opts) do
+    RedixCluster.Monitor.refresh_mapping(version)
+    {:error, :retry}
+  end
+  defp parse_trans_result(payload, _, _, _, _), do: payload
 
   defp verify_command_key(term1, term2) do
     term1
