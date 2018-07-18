@@ -62,8 +62,8 @@ defmodule RedixCluster.Run do
       nil -> RedixCluster.Hash.hash(key)
       [tohash_key] ->
         tohash_key
-          |> String.strip(?{)
-          |> String.strip(?})
+          |> String.trim("{")
+          |> String.trim("}")
           |> RedixCluster.Hash.hash
     end
   end

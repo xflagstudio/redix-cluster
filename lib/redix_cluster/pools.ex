@@ -16,14 +16,14 @@ defmodule RedixCluster.Pools.Supervisor do
 
   def init(nil), do: {:ok, {{:one_for_one, 1, 5}, []}}
 
-  @spec new_pool(char_list, integer) :: {:ok, atom}|{:error, atom}
+  @spec new_pool(charlist, integer) :: {:ok, atom}|{:error, atom}
   def new_pool(host, port) do
     pool_name = ["Pool", host, ":", port] |> Enum.join |> String.to_atom
     case Process.whereis(pool_name) do
       nil ->
         :ets.insert(__MODULE__, {pool_name,0})
         pool_size = get_env(:pool_size, @default_pool_size)
-       	pool_max_overflow = get_env(:pool_max_overflow, @default_pool_max_overflow)
+        pool_max_overflow = get_env(:pool_max_overflow, @default_pool_max_overflow)
         pool_args = [name: {:local, pool_name},
                      worker_module: RedixCluster.Worker,
                      size: pool_size,
