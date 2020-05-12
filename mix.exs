@@ -16,7 +16,6 @@ defmodule RedixCluster.Mixfile do
   # Type "mix help compile.app" for more information
   def application do
     [mod: {RedixCluster, []},
-    included_applications: [:crc],
     extra_applications: [:logger]]
   end
 
