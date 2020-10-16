@@ -29,7 +29,7 @@ defmodule RedixCluster.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    [ {:redix, "0.7.1"},
+    [ {:redix, "~> 0.10.0"},
       {:poolboy, "~> 1.5", override: true},
       {:dialyze, "~> 0.2", only: :dev},
       {:dogma, "~> 0.0", only: :dev},
