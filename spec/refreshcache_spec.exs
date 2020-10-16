@@ -2,7 +2,7 @@ defmodule RedixCluster.RefreshCache.Spec do
   use ESpec
 
   before do
-    allow Redix |> to accept :start_link, fn(_, _) -> {:ok, self()} end, [:non_strict, :unstick]
+    allow Redix |> to accept :start_link, fn(_) -> {:ok, self()} end, [:non_strict, :unstick]
     allow Redix |> to accept :stop, fn(_) -> :ok end, [:non_strict, :unstick]
     allow Redix |> to accept :command, fn
       (_, ~w(CLUSTER SLOTS), _) ->

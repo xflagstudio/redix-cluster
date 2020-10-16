@@ -39,8 +39,8 @@
         
         # redix connection_opts
           socket_opts: [],
-          backoff: 2000,
-          max_reconnection_attempts: nil
+          backoff_initial: 2000,
+          backoff_max: :infinity
      ```          
           
    `it's never slow down the speed of commands even redis is not on cluster`  
