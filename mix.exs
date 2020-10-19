@@ -34,9 +34,9 @@ defmodule RedixCluster.Mixfile do
       {:dialyze, "~> 0.2", only: :dev},
       {:dogma, "~> 0.0", only: :dev},
       {:crc, "~> 0.5"},
+      {:espec, "~> 1.7.0", only: :test},
       {:benchfella, github: "alco/benchfella", only: :bench},
       {:eredis_cluster, github: "adrienmo/eredis_cluster", only: :bench},
-      {:espec, github: "antonmi/espec", only: :test},
     ]
   end
 end
