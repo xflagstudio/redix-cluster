@@ -4,7 +4,7 @@ defmodule RedixCluster.Mixfile do
   def project do
     [app: :redix_cluster,
      version: "0.0.1",
-     elixir: "~> 1.4",
+     elixir: "~> 1.6",
      build_embedded: Mix.env in [:prod],
      start_permanent: Mix.env == :prod,
      preferred_cli_env: [espec: :test],
