@@ -4,7 +4,7 @@ defmodule RedixCluster.Mixfile do
   def project do
     [app: :redix_cluster,
      version: "0.0.1",
-     elixir: "~> 1.4",
+     elixir: "~> 1.6",
      build_embedded: Mix.env in [:prod],
      start_permanent: Mix.env == :prod,
      preferred_cli_env: [espec: :test],
@@ -29,14 +29,14 @@ defmodule RedixCluster.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    [ {:redix, "0.7.1"},
+    [ {:redix, "~> 0.10.0"},
       {:poolboy, "~> 1.5", override: true},
       {:dialyze, "~> 0.2", only: :dev},
       {:dogma, "~> 0.0", only: :dev},
       {:crc, "~> 0.5"},
+      {:espec, "~> 1.7.0", only: :test},
       {:benchfella, github: "alco/benchfella", only: :bench},
       {:eredis_cluster, github: "adrienmo/eredis_cluster", only: :bench},
-      {:espec, github: "antonmi/espec", only: :test},
     ]
   end
 end

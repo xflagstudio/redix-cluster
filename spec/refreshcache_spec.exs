@@ -2,9 +2,9 @@ defmodule RedixCluster.RefreshCache.Spec do
   use ESpec
 
   before do
-    allow Redix |> to accept :start_link, fn(_, _) -> {:ok, self()} end, [:non_strict, :unstick]
-    allow Redix |> to accept :stop, fn(_) -> :ok end, [:non_strict, :unstick]
-    allow Redix |> to accept :command, fn
+    allow Redix |> to(accept(:start_link, fn(_) -> {:ok, self()} end, [:non_strict, :unstick]))
+    allow Redix |> to(accept(:stop, fn(_) -> :ok end, [:non_strict, :unstick]))
+    allow Redix |> to(accept(:command, fn
       (_, ~w(CLUSTER SLOTS), _) ->
         case get_version() do
           1 -> {:ok,
@@ -22,7 +22,7 @@ defmodule RedixCluster.RefreshCache.Spec do
           _ -> {:ok, "OK"}
         end
       (_, ~w(get a), _) -> {:ok, "test"}
-    end, [:non_strict, :unstick]
+    end, [:non_strict, :unstick]))
 
     Application.ensure_all_started(:redix_cluster)
     {:shared, count:  1}
@@ -31,7 +31,7 @@ defmodule RedixCluster.RefreshCache.Spec do
   finally do: {:shared, count: shared.count + 1}
 
   context "refresh cache test" do
-    it do: expect refresh_test() |> to eq {{:ok, "OK"}, 1, 2}
+    it(do: expect(refresh_test() |> to(eq({{:ok, "OK"}, 1, 2}))))
   end
 
   defp refresh_test do

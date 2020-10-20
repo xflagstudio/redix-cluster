@@ -85,18 +85,20 @@ defmodule RedixCluster.Monitor do
   defp get_cluster_info([node|restnodes]) do
     case start_link_redix(node.host, node.port) do
       {:ok, conn} ->
-        try do
-          case Redix.command(conn, ~w(CLUSTER SLOTS), []) do
-            {:ok, cluster_info} ->
-              Redix.stop(conn)
-              {true, cluster_info}
-            {:error, _} -> get_cluster_info(restnodes)
-          end
-        rescue
-          Redix.Error ->
+        case Redix.command(conn, ~w(CLUSTER SLOTS), []) do
+          {:ok, cluster_info} ->
+            Redix.stop(conn)
+            {true, cluster_info}
+
+          {:error, %Redix.Error{}} ->
             cluster_info_from_single_node(node)
+
+          {:error, _} ->
+            get_cluster_info(restnodes)
         end
-      _ -> get_cluster_info(restnodes)
+
+      _ ->
+        get_cluster_info(restnodes)
     end
   end
 
@@ -124,12 +126,20 @@ defmodule RedixCluster.Monitor do
   end
 
   def start_link_redix(host, port) do
-  socket_opts = get_env(:socket_opts, [])
-  backoff = get_env(:backoff, 2000)
-  max_reconnection_attempts = get_env(:max_reconnection_attempts)
+    socket_opts = get_env(:socket_opts, [])
+    backoff_initial = get_env(:backoff_initial, 1000)
+    backoff_max = get_env(:backoff_max, :infinity)
     :erlang.process_flag(:trap_exit, true)
-    result = Redix.start_link([host: host, port: port],
-      [socket_opts: socket_opts, backoff: backoff, max_reconnection_attempts: max_reconnection_attempts])
+
+    result =
+      Redix.start_link(
+        host: host,
+        port: port,
+        socket_opts: socket_opts,
+        backoff_initial: backoff_initial,
+        backoff_max: backoff_max
+      )
+
     :erlang.process_flag(:trap_exit, false)
     result
   end

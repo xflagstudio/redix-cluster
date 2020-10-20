@@ -9,12 +9,19 @@ defmodule RedixCluster.Worker do
 
   def init(worker) do
    socket_opts = get_env(:socket_opts, [])
-   backoff = get_env(:backoff, 2000)
-   max_reconnection_attempts = get_env(:max_reconnection_attempts)
+   backoff_initial = get_env(:backoff_initial, 1000)
+   backoff_max = get_env(:backoff_max, :infinity)
    :erlang.process_flag(:trap_exit, true)
    RedixCluster.Pools.Supervisor.register_worker_connection(worker[:pool_name])
-   result = Redix.start_link([host: worker[:host], port: worker[:port]],
-     [socket_opts: socket_opts, backoff: backoff, max_reconnection_attempts: max_reconnection_attempts])
+   result =
+     Redix.start_link(
+       host: worker[:host],
+       port: worker[:port],
+       socket_opts: socket_opts,
+       backoff_initial: backoff_initial,
+       backoff_max: backoff_max
+     )
+
    :erlang.process_flag(:trap_exit, false)
    case result do
      {:ok, connection} -> {:ok, %{conn: connection}}
@@ -26,20 +33,10 @@ defmodule RedixCluster.Worker do
     {:reply, {:error, :no_connection}, state}
   end
   def handle_call({:command, params, opts}, _From, %{conn: conn} = state) do
-    try do
-      {:reply, Redix.command(conn, params, opts), state}
-    rescue
-      e in Redix.Error ->
-        {:reply, {:error, e}, state}
-    end
+    {:reply, Redix.command(conn, params, opts), state}
   end
   def handle_call({:pipeline, params, opts}, _from, %{conn: conn} = state) do
-    try do
-      {:reply, Redix.pipeline(conn, params, opts), state}
-    rescue
-      e in Redix.Error ->
-        {:reply, {:error, e}, state}
-    end
+    {:reply, Redix.pipeline(conn, params, opts), state}
   end
   def handle_call(_request, _from, state), do: {:reply, :ok, state}
 

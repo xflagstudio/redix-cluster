@@ -5,7 +5,7 @@ ESpec.configure fn(config) ->
     {:shared, count: 1}
   end
 
-  config.finally fn(shared) ->
-
+  config.finally fn(_shared) ->
+    nil
   end
 end
